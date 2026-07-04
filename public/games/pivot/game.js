@@ -10,16 +10,17 @@
   const PLATFORM_W = 300;
   const PLATFORM_H = 14;
   const BALL_R = 8;
-  const OBSTACLE_W = 30;
-  const OBSTACLE_H = 12;
 
   let ball = { x: 0, y: 0, vx: 0, vy: 0 };
-  let platform = { angle: 0 };
+  let platform = { angle: 0, targetAngle: 0 };
   let obstacles = [];
+  let particles = [];
+  let ballTrail = [];
   let score = 0;
   let running = false;
   let gameOver = false;
   let scrollY = 0;
+  let passedObstacles = 0;
 
   function resize() {
     const dpr = window.devicePixelRatio || 1;
@@ -35,38 +36,48 @@
     ball.vx = 0;
     ball.vy = 0;
     platform.angle = 0;
+    platform.targetAngle = 0;
     obstacles = [];
+    particles = [];
+    ballTrail = [];
     score = 0;
+    passedObstacles = 0;
     gameOver = false;
     scrollY = 0;
   }
 
-  function spawnObstacle() {
-    const w = canvas.clientWidth;
-    const gapSize = 80;
-    const x = Math.random() * (w - OBSTACLE_W);
-    const y = scrollY - 40;
-    obstacles.push({ x, y, leftGap: false });
-    // Second obstacle with gap
-    const gapX = Math.random() * (w - gapSize);
-    obstacles.push({ x: 0, y: scrollY - 80, leftGap: true, gapX, gapW: gapSize });
+  function spawnParticles(x, y, color, count) {
+    for (let i = 0; i < count; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 20 + Math.random() * 60;
+      particles.push({
+        x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+        life: 0.3 + Math.random() * 0.4, maxLife: 0.3 + Math.random() * 0.4,
+        color, r: 2 + Math.random() * 3,
+      });
+    }
   }
 
   function update(dt) {
     if (!running || gameOver) return;
 
-    // Gravity + platform angle
-    const gravity = 400;
-    const tiltForce = Math.sin(platform.angle) * 200;
+    // Smooth platform angle
+    platform.angle += (platform.targetAngle - platform.angle) * 8 * dt;
+
+    const gravity = 420;
+    const tiltForce = Math.sin(platform.angle) * 220;
 
     ball.vy += gravity * dt;
     ball.vx += tiltForce * dt;
-    ball.vx *= 0.98;
+    ball.vx *= 0.985;
 
     ball.x += ball.vx * dt;
     ball.y += ball.vy * dt;
 
-    // Platform collision
+    // Trail
+    ballTrail.push({ x: ball.x, y: ball.y });
+    if (ballTrail.length > 15) ballTrail.shift();
+
     const w = canvas.clientWidth;
     const h = canvas.clientHeight;
     const platY = h - 60;
@@ -74,117 +85,132 @@
     if (ball.y + BALL_R > platY && ball.y - BALL_R < platY + PLATFORM_H &&
         ball.x > w / 2 - PLATFORM_W / 2 && ball.x < w / 2 + PLATFORM_W / 2) {
       ball.y = platY - BALL_R;
-      ball.vy *= -0.3;
+      ball.vy *= -0.25;
       if (Math.abs(ball.vy) < 30) ball.vy = 0;
     }
 
-    // Ball falls off platform
     if (ball.y > h + 50) {
-      gameOver = true;
-      running = false;
+      gameOver = true; running = false;
+      spawnParticles(ball.x, h, "#FD79A8", 30);
       send({ type: "gameover", payload: { score } });
       return;
     }
 
-    // Scroll obstacles
-    scrollY += 60 * dt;
+    scrollY += 65 * dt;
     if (obstacles.length === 0 || obstacles[obstacles.length - 1].y > scrollY - 150) {
       spawnObstacle();
     }
 
-    // Move and check obstacles
     for (let i = obstacles.length - 1; i >= 0; i--) {
       const obs = obstacles[i];
-      obs.y += 60 * dt;
+      obs.y += 65 * dt;
 
-      // Remove off-screen
-      if (obs.y > h + 50) {
+      if (obs.y > platY + 50) {
         obstacles.splice(i, 1);
-        score += 10;
-        send({ type: "score", payload: { score } });
+        if (!obs.hit) {
+          score += 10 + Math.floor(Math.random() * 5);
+          passedObstacles++;
+          spawnParticles(w / 2, platY, "#00CEC9", 5);
+          send({ type: "score", payload: { score } });
+        }
         continue;
       }
 
-      // Collision
-      if (ball.x + BALL_R > obs.x && ball.x - BALL_R < obs.x + OBSTACLE_W &&
-          ball.y + BALL_R > obs.y && ball.y - BALL_R < obs.y + OBSTACLE_H) {
-        if (!obs.leftGap) {
-          gameOver = true;
-          running = false;
-          send({ type: "gameover", payload: { score } });
-          return;
-        }
-        // Check if ball is in the gap
-        if (ball.x > obs.gapX && ball.x < obs.gapX + obs.gapW) {
-          // Safe
-        } else {
-          gameOver = true;
-          running = false;
+      if (ball.x + BALL_R > obs.x && ball.x - BALL_R < obs.x + obs.w &&
+          ball.y + BALL_R > obs.y && ball.y - BALL_R < obs.y + obs.h) {
+        if (!obs.safe) {
+          gameOver = true; running = false;
+          spawnParticles(ball.x, ball.y, "#FD79A8", 20);
           send({ type: "gameover", payload: { score } });
           return;
         }
       }
     }
 
-    // Keep ball in bounds
-    if (ball.x < BALL_R) ball.x = BALL_R;
-    if (ball.x > w - BALL_R) ball.x = w - BALL_R;
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.x += p.vx * dt; p.y += p.vy * dt;
+      p.life -= dt; p.vx *= 0.95; p.vy *= 0.95;
+      if (p.life <= 0) particles.splice(i, 1);
+    }
+  }
+
+  function spawnObstacle() {
+    const w = canvas.clientWidth;
+    const t = Math.random();
+    if (t < 0.5) {
+      obstacles.push({ x: Math.random() * (w - 40), y: scrollY - 40, w: 40, h: 12, safe: false, hit: false });
+    } else if (t < 0.8) {
+      const gapSize = 60 + Math.random() * 40;
+      const gapX = Math.random() * (w - gapSize);
+      obstacles.push({ x: 0, y: scrollY - 40, w: gapX, h: 12, safe: true, hit: false });
+      obstacles.push({ x: gapX + gapSize, y: scrollY - 40, w: w - gapX - gapSize, h: 12, safe: true, hit: false });
+    } else {
+      obstacles.push({ x: w / 2 - 60, y: scrollY - 40, w: 120, h: 12, safe: false, hit: false });
+    }
   }
 
   function draw() {
     const w = canvas.clientWidth;
     const h = canvas.clientHeight;
-
     ctx.clearRect(0, 0, w, h);
-    ctx.fillStyle = "#0a0a1a";
+
+    // Background
+    const grad = ctx.createLinearGradient(0, 0, 0, h);
+    grad.addColorStop(0, "#0a0a1a");
+    grad.addColorStop(1, "#0f0520");
+    ctx.fillStyle = grad;
     ctx.fillRect(0, 0, w, h);
 
-    // Background grid
-    ctx.strokeStyle = "#ffffff08";
+    // Grid
+    ctx.strokeStyle = "#ffffff06";
     ctx.lineWidth = 1;
-    for (let x = 0; x < w; x += 40) {
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, h);
-      ctx.stroke();
+    for (let x = 0; x < w; x += 35) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
     }
-    for (let y = scrollY % 40; y < h; y += 40) {
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(w, y);
-      ctx.stroke();
+    for (let y = scrollY % 35; y < h; y += 35) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
     }
 
-    // Obstacles
+    // Particles
+    particles.forEach((p) => {
+      const alpha = Math.max(0, p.life / p.maxLife);
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r * alpha, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+
+    // Obstacles with glow
     obstacles.forEach((obs) => {
-      if (obs.leftGap) {
-        // Draw walls with gap
-        ctx.fillStyle = "#6C5CE7";
-        ctx.fillRect(obs.x, obs.y, obs.gapX, OBSTACLE_H);
-        ctx.fillRect(obs.gapX + obs.gapW, obs.y, w - obs.gapX - obs.gapW, OBSTACLE_H);
-        ctx.fillStyle = "#6C5CE740";
-        ctx.fillRect(obs.gapX, obs.y - 1, obs.gapW, 2);
-      } else {
-        ctx.fillStyle = "#6C5CE7";
-        ctx.fillRect(obs.x, obs.y, OBSTACLE_W, OBSTACLE_H);
+      if (obs.safe) {
+        ctx.fillStyle = "#2a1a3a";
+        ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
+        return;
       }
+      ctx.shadowColor = "#FD79A8";
+      ctx.shadowBlur = 10;
+      ctx.fillStyle = "#FD79A8";
+      ctx.beginPath();
+      ctx.roundRect(obs.x, obs.y, obs.w, obs.h, 4);
+      ctx.fill();
+      ctx.shadowBlur = 0;
     });
 
-    // Platform
-    ctx.save();
-    ctx.translate(w / 2, h - 60);
-    ctx.rotate(platform.angle);
-    ctx.fillStyle = "#6C5CE7";
-    ctx.beginPath();
-    ctx.roundRect(-PLATFORM_W / 2, -PLATFORM_H / 2, PLATFORM_W, PLATFORM_H, 6);
-    ctx.fill();
-    ctx.fillStyle = "#7c6cf7";
-    ctx.beginPath();
-    ctx.roundRect(-PLATFORM_W / 2, -PLATFORM_H / 2, PLATFORM_W, 4, 2);
-    ctx.fill();
-    ctx.restore();
+    // Ball trail
+    ballTrail.forEach((t, i) => {
+      const alpha = (i / ballTrail.length) * 0.4;
+      ctx.fillStyle = `rgba(253,203,110,${alpha})`;
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, BALL_R * (0.2 + 0.8 * i / ballTrail.length), 0, Math.PI * 2);
+      ctx.fill();
+    });
 
-    // Ball
+    // Ball glow
+    ctx.shadowColor = "#FDCB6E";
+    ctx.shadowBlur = 20;
     ctx.beginPath();
     ctx.arc(ball.x, ball.y, BALL_R, 0, Math.PI * 2);
     ctx.fillStyle = "#FDCB6E";
@@ -192,6 +218,24 @@
     ctx.strokeStyle = "#E17055";
     ctx.lineWidth = 1.5;
     ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Platform with glow
+    ctx.save();
+    ctx.translate(w / 2, h - 60);
+    ctx.rotate(platform.angle);
+    ctx.shadowColor = "#6C5CE7";
+    ctx.shadowBlur = 15;
+    ctx.fillStyle = "#6C5CE7";
+    ctx.beginPath();
+    ctx.roundRect(-PLATFORM_W / 2, -PLATFORM_H / 2, PLATFORM_W, PLATFORM_H, 6);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = "#8a7cf7";
+    ctx.beginPath();
+    ctx.roundRect(-PLATFORM_W / 2, -PLATFORM_H / 2, PLATFORM_W, 4, 2);
+    ctx.fill();
+    ctx.restore();
 
     // HUD
     ctx.fillStyle = "#fff";
@@ -200,12 +244,15 @@
     ctx.fillText("Puntos: " + score, 16, 24);
 
     if (!running && gameOver) {
-      ctx.fillStyle = "rgba(0,0,0,0.6)";
+      ctx.fillStyle = "rgba(0,0,0,0.7)";
       ctx.fillRect(0, 0, w, h);
       ctx.fillStyle = "#fff";
-      ctx.font = "24px monospace";
+      ctx.font = "bold 28px monospace";
       ctx.textAlign = "center";
+      ctx.shadowColor = "#6C5CE7";
+      ctx.shadowBlur = 20;
       ctx.fillText("Game Over", w / 2, h / 2 - 20);
+      ctx.shadowBlur = 0;
       ctx.font = "16px monospace";
       ctx.fillText("Puntuación: " + score, w / 2, h / 2 + 20);
     }
@@ -217,16 +264,14 @@
     requestAnimationFrame(loop);
   }
 
-  // Keyboard input for tilt
   document.addEventListener("keydown", (e) => {
-    if (e.code === "ArrowLeft" || e.code === "KeyA") platform.angle = -0.4;
-    if (e.code === "ArrowRight" || e.code === "KeyD") platform.angle = 0.4;
+    if (e.code === "ArrowLeft" || e.code === "KeyA") platform.targetAngle = -0.45;
+    if (e.code === "ArrowRight" || e.code === "KeyD") platform.targetAngle = 0.45;
   });
   document.addEventListener("keyup", (e) => {
-    if (["ArrowLeft", "ArrowRight", "KeyA", "KeyD"].includes(e.code)) platform.angle = 0;
+    if (["ArrowLeft", "ArrowRight", "KeyA", "KeyD"].includes(e.code)) platform.targetAngle = 0;
   });
 
-  // Touch input
   let touchStartX = null;
   canvas.addEventListener("touchstart", (e) => {
     touchStartX = e.touches[0].clientX;
@@ -235,24 +280,21 @@
     e.preventDefault();
     if (touchStartX !== null) {
       const dx = e.touches[0].clientX - touchStartX;
-      platform.angle = Math.max(-0.5, Math.min(0.5, dx / 200));
+      platform.targetAngle = Math.max(-0.5, Math.min(0.5, dx / 150));
     }
   }, { passive: false });
   canvas.addEventListener("touchend", () => {
     touchStartX = null;
-    platform.angle = 0;
+    platform.targetAngle = 0;
   }, { passive: false });
 
-  // GameBridge
   window.addEventListener("message", (e) => {
     if (e.data?.type === "start" && !running) {
-      running = true;
-      init();
+      running = true; init();
       send({ type: "ready" });
     }
     if (e.data?.type === "restart") {
-      running = true;
-      init();
+      running = true; init();
       send({ type: "ready" });
     }
     if (e.data?.type === "pause") running = false;
