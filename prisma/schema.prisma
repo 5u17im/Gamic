@@ -15,6 +15,8 @@ model User {
   image     String?
   nickname  String   @unique
   password  String?
+  role      String   @default("user")
+  status    String   @default("active")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -82,6 +84,7 @@ model Game {
   thumbnail    String?
   complexity   Int      @default(1)
   instructions String?
+  gameUrl      String?
   status       String   @default("draft")
   playCount    Int      @default(0)
   createdAt    DateTime @default(now())

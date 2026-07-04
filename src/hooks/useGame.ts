@@ -21,6 +21,12 @@ interface UseGameReturn {
   restart: () => void;
 }
 
+const ALLOWED_ORIGINS: string[] = [];
+
+if (typeof window !== "undefined") {
+  ALLOWED_ORIGINS.push(window.location.origin);
+}
+
 export function useGame({ slug, onScore, onGameOver, onError }: UseGameOptions): UseGameReturn {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -29,6 +35,8 @@ export function useGame({ slug, onScore, onGameOver, onError }: UseGameOptions):
 
   const handleMessage = useCallback(
     (event: MessageEvent<GameBridgeMessage>) => {
+      if (!ALLOWED_ORIGINS.includes(event.origin)) return;
+
       const msg = event.data;
       if (!msg || !msg.type) return;
 
@@ -61,7 +69,7 @@ export function useGame({ slug, onScore, onGameOver, onError }: UseGameOptions):
   const postMessage = useCallback((type: string, payload?: Record<string, unknown>) => {
     iframeRef.current?.contentWindow?.postMessage(
       { type, payload, timestamp: Date.now() },
-      "*"
+      window.location.origin
     );
   }, []);
 

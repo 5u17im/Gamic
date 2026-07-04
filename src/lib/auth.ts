@@ -52,13 +52,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.id = token.sub;
         const dbUser = await db.user.findUnique({
           where: { id: token.sub },
-          select: { name: true, nickname: true, email: true, image: true },
+          select: { name: true, nickname: true, email: true, image: true, role: true },
         });
         if (dbUser) {
           session.user.name = dbUser.name;
           session.user.email = dbUser.email;
           session.user.image = dbUser.image;
           (session.user as any).nickname = dbUser.nickname;
+          (session.user as any).role = dbUser.role;
         }
       }
       return session;
@@ -74,3 +75,27 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     strategy: "jwt",
   },
 });
+
+const rateStore = new Map<string, { count: number; resetAt: number }>();
+
+export function requireAdmin(session: any): boolean {
+  return session?.user?.id && (session as any)?.user?.role === "admin";
+}
+
+export function checkRateLimit(key: string, max: number, windowMs: number): boolean {
+  const now = Date.now();
+  const entry = rateStore.get(key);
+  if (!entry || now > entry.resetAt) {
+    rateStore.set(key, { count: 1, resetAt: now + windowMs });
+    return true;
+  }
+  if (entry.count >= max) return false;
+  entry.count++;
+  return true;
+}
+
+export function getRateRemaining(key: string, max: number): number {
+  const entry = rateStore.get(key);
+  if (!entry) return max;
+  return Math.max(0, max - entry.count);
+}

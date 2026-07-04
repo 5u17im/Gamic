@@ -2,22 +2,22 @@ import type { GameBridgeMessage, GameConfig, GameScore } from "@/types";
 
 type BridgeCallback = (message: GameBridgeMessage) => void;
 
+const ALLOWED_ORIGINS = [window.location.origin];
+
 export class GameBridge {
   private iframe: HTMLIFrameElement | null = null;
   private targetOrigin: string;
   private callback: BridgeCallback | null = null;
   private pendingMessages: GameBridgeMessage[] = [];
 
-  constructor(targetOrigin = "*") {
-    this.targetOrigin = targetOrigin;
+  constructor(targetOrigin?: string) {
+    this.targetOrigin = targetOrigin ?? window.location.origin;
   }
 
   connect(iframe: HTMLIFrameElement, callback: BridgeCallback): void {
     this.iframe = iframe;
     this.callback = callback;
-
     window.addEventListener("message", this.handleMessage);
-
     for (const msg of this.pendingMessages) {
       this.post(msg);
     }
@@ -47,11 +47,7 @@ export class GameBridge {
   }
 
   private send(type: GameBridgeMessage["type"], payload?: Record<string, unknown>): void {
-    const message: GameBridgeMessage = {
-      type,
-      payload,
-      timestamp: Date.now(),
-    };
+    const message: GameBridgeMessage = { type, payload, timestamp: Date.now() };
     this.post(message);
   }
 
@@ -64,7 +60,7 @@ export class GameBridge {
   }
 
   private handleMessage = (event: MessageEvent<GameBridgeMessage>): void => {
-    if (this.targetOrigin !== "*" && event.origin !== this.targetOrigin) return;
+    if (!ALLOWED_ORIGINS.includes(event.origin)) return;
 
     const msg = event.data;
     if (!msg || !msg.type) return;
