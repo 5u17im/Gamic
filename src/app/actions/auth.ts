@@ -5,16 +5,16 @@ import { db } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import { redirect } from "next/navigation";
 
-export async function loginAction(formData: FormData) {
-  const email = formData.get("email") as string;
-  const password = formData.get("password") as string;
+type ActionState = { error: string } | undefined;
 
+async function handleLogin(email: string, password: string): Promise<ActionState> {
   if (!email || !password) {
     return { error: "Todos los campos son obligatorios" };
   }
 
   try {
-    await signIn("credentials", { email, password, redirect: false });
+    const result = await signIn("credentials", { email, password, redirect: false });
+    if (result?.error) return { error: "Credenciales inválidas" };
   } catch {
     return { error: "Credenciales inválidas" };
   }
@@ -22,7 +22,11 @@ export async function loginAction(formData: FormData) {
   redirect("/");
 }
 
-export async function registerAction(formData: FormData) {
+export async function loginAction(_state: ActionState, formData: FormData): Promise<ActionState> {
+  return handleLogin(formData.get("email") as string, formData.get("password") as string);
+}
+
+export async function registerAction(_state: ActionState, formData: FormData): Promise<ActionState> {
   const name = formData.get("name") as string;
   const email = formData.get("email") as string;
   const nickname = formData.get("nickname") as string;

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { Menu, X, Search, LogOut, User as UserIcon } from "lucide-react";
@@ -19,10 +19,21 @@ const categories = [
 
 export function Header() {
   const pathname = usePathname();
+  const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const { data: session } = useSession();
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      router.push(`/categories?q=${encodeURIComponent(searchQuery.trim())}`);
+      setSearchOpen(false);
+      setSearchQuery("");
+    }
+  };
   const isActive = (path: string) => pathname === path;
 
   return (
@@ -104,15 +115,17 @@ export function Header() {
       {searchOpen && (
         <div className="border-t border-border px-4 py-3 sm:px-6">
           <div className="mx-auto max-w-7xl">
-            <div className="relative">
+            <form onSubmit={handleSearch} className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-secondary" />
               <input
                 type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Buscar juegos..."
                 className="w-full rounded-lg border border-border bg-bg py-2.5 pl-10 pr-4 text-sm text-text-primary placeholder:text-text-secondary focus:border-border-focus focus:outline-none focus:ring-3 focus:ring-primary/20 transition-colors"
                 autoFocus
               />
-            </div>
+            </form>
           </div>
         </div>
       )}
