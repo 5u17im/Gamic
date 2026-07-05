@@ -4,6 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "db:migrate": "prisma migrate dev",
+    "db:seed": "prisma db seed",
+    "db:reset": "prisma migrate reset --force",
+    "setup": "prisma migrate dev && prisma db seed",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
