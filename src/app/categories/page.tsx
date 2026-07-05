@@ -1,15 +1,15 @@
 import { GameCard } from "@/components/games/GameCard";
 import { getPublishedGames, getCategories } from "@/lib/data";
 
-export default async function CategoriesPage(props: { searchParams: Promise<{ cat?: string; q?: string }> }) {
-  const [games, categories] = await Promise.all([
+export default async function CategoriesPage(props: { searchParams: Promise<{ cat?: string; q?: string; page?: string }> }) {
+  const [allGames, categories] = await Promise.all([
     getPublishedGames(),
     getCategories(),
   ]);
 
-  const { cat, q } = await props.searchParams;
+  const { cat, q, page: pageParam } = await props.searchParams;
 
-  let filtered = games;
+  let filtered = allGames;
 
   if (cat && cat !== "Todos") {
     filtered = filtered.filter((g) => g.category.slug === cat.toLowerCase());
@@ -21,6 +21,11 @@ export default async function CategoriesPage(props: { searchParams: Promise<{ ca
       (g) => g.title.toLowerCase().includes(query) || (g.description ?? "").toLowerCase().includes(query)
     );
   }
+
+  const pageSize = 12;
+  const currentPage = Math.max(1, Number(pageParam) || 1);
+  const totalPages = Math.ceil(filtered.length / pageSize);
+  const games = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
@@ -53,25 +58,51 @@ export default async function CategoriesPage(props: { searchParams: Promise<{ ca
         ))}
       </div>
 
-      {filtered.length === 0 ? (
+      {allGames.length === 0 ? (
         <div className="rounded-xl border border-border bg-surface p-12 text-center">
           <p className="text-text-secondary">No se encontraron juegos con esos criterios.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-          {filtered.map((game) => (
-            <GameCard
-              key={game.slug}
-              slug={game.slug}
-              title={game.title}
-              category={game.category.name}
-              categorySlug={game.category.slug}
-              description={game.description ?? ""}
-              complexity={game.complexity}
-              thumbnail={null}
-            />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+            {games.map((game) => (
+              <GameCard
+                key={game.slug}
+                slug={game.slug}
+                title={game.title}
+                category={game.category.name}
+                categorySlug={game.category.slug}
+                description={game.description ?? ""}
+                complexity={game.complexity}
+                thumbnail={null}
+              />
+            ))}
+          </div>
+
+          {totalPages > 1 && (
+            <div className="mt-8 flex items-center justify-center gap-2">
+              {currentPage > 1 && (
+                <a
+                  href={`/categories?page=${currentPage - 1}${cat ? `&cat=${cat}` : ""}${q ? `&q=${q}` : ""}`}
+                  className="rounded-lg border border-border bg-surface px-4 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-surface-hover"
+                >
+                  &larr; Anterior
+                </a>
+              )}
+              <span className="text-sm text-text-secondary">
+                Página {currentPage} de {totalPages}
+              </span>
+              {currentPage < totalPages && (
+                <a
+                  href={`/categories?page=${currentPage + 1}${cat ? `&cat=${cat}` : ""}${q ? `&q=${q}` : ""}`}
+                  className="rounded-lg border border-border bg-surface px-4 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-surface-hover"
+                >
+                  Siguiente &rarr;
+                </a>
+              )}
+            </div>
+          )}
+        </>
       )}
     </div>
   );

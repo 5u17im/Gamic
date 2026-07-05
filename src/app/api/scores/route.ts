@@ -60,23 +60,28 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const gameSlug = searchParams.get("game");
-    const limit = Math.min(Number(searchParams.get("limit")) || 10, 50);
+    const page = Math.max(1, Number(searchParams.get("page")) || 1);
+    const pageSize = Math.min(Number(searchParams.get("limit")) || 10, 50);
 
     const where = gameSlug
       ? { game: { slug: gameSlug } }
       : {};
 
-    const scores = await db.score.findMany({
-      where,
-      orderBy: { score: "desc" },
-      take: limit,
-      include: {
-        user: { select: { id: true, name: true, image: true, nickname: true } },
-        game: { select: { slug: true, title: true } },
-      },
-    });
+    const [scores, total] = await Promise.all([
+      db.score.findMany({
+        where,
+        orderBy: { score: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        include: {
+          user: { select: { id: true, name: true, image: true, nickname: true } },
+          game: { select: { slug: true, title: true } },
+        },
+      }),
+      db.score.count({ where }),
+    ]);
 
-    return NextResponse.json(scores);
+    return NextResponse.json({ scores, total, page, pageSize, totalPages: Math.ceil(total / pageSize) });
   } catch (e) {
     console.error("scores GET error:", e);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

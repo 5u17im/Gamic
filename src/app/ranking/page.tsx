@@ -10,13 +10,14 @@ interface ScoreEntry {
   game: { slug: string; title: string };
 }
 
-async function getScores(game?: string): Promise<ScoreEntry[]> {
+async function getScores(game?: string, page = 1, pageSize = 20): Promise<ScoreEntry[]> {
   try {
     const where = game ? { game: { slug: game } } : {};
     const scores = await db.score.findMany({
       where,
       orderBy: { score: "desc" },
-      take: 20,
+      skip: (page - 1) * pageSize,
+      take: pageSize,
       include: {
         user: { select: { id: true, name: true, image: true, nickname: true } },
         game: { select: { slug: true, title: true } },
@@ -36,12 +37,19 @@ async function getRankingGames() {
   });
 }
 
-export default async function RankingPage(props: { searchParams: Promise<{ game?: string }> }) {
-  const { game } = await props.searchParams;
+export default async function RankingPage(props: { searchParams: Promise<{ game?: string; page?: string }> }) {
+  const { game, page: pageParam } = await props.searchParams;
+  const currentPage = Math.max(1, Number(pageParam) || 1);
+  const pageSize = 20;
   const [scores, games] = await Promise.all([
-    getScores(game),
+    getScores(game, currentPage, pageSize),
     getRankingGames(),
   ]);
+
+  const totalCount = game
+    ? await db.score.count({ where: { game: { slug: game } } })
+    : await db.score.count();
+  const totalPages = Math.ceil(totalCount / pageSize);
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
@@ -80,38 +88,61 @@ export default async function RankingPage(props: { searchParams: Promise<{ game?
           </p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-border bg-surface">
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="border-b border-border bg-surface-hover/50">
-                <th className="px-4 py-3 font-medium text-text-secondary">#</th>
-                <th className="px-4 py-3 font-medium text-text-secondary">Jugador</th>
-                <th className="px-4 py-3 font-medium text-text-secondary">Juego</th>
-                <th className="px-4 py-3 font-medium text-text-secondary text-right">Puntuación</th>
-                <th className="px-4 py-3 font-medium text-text-secondary text-right hidden sm:table-cell">Duración</th>
-              </tr>
-            </thead>
-            <tbody>
-              {scores.map((entry, i) => (
-                <tr key={entry.id} className="border-b border-border last:border-0 hover:bg-surface-hover/30">
-                  <td className="px-4 py-3">
-                    <span className={`font-mono text-sm ${i < 3 ? "text-score-gold" : "text-text-secondary"}`}>
-                      {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="font-medium text-text-primary">{entry.user.nickname || entry.user.name || "Anónimo"}</span>
-                  </td>
-                  <td className="px-4 py-3 text-text-secondary">{entry.game.title}</td>
-                  <td className="px-4 py-3 text-right font-mono font-bold text-text-primary">{entry.score.toLocaleString("es-CO")}</td>
-                  <td className="px-4 py-3 text-right font-mono text-text-secondary hidden sm:table-cell">
-                    {entry.duration ? `${Math.floor(entry.duration / 60)}:${(entry.duration % 60).toString().padStart(2, "0")}` : "-"}
-                  </td>
+        <>
+          <div className="overflow-hidden rounded-xl border border-border bg-surface">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-border bg-surface-hover/50">
+                  <th className="px-4 py-3 font-medium text-text-secondary">#</th>
+                  <th className="px-4 py-3 font-medium text-text-secondary">Jugador</th>
+                  <th className="px-4 py-3 font-medium text-text-secondary">Juego</th>
+                  <th className="px-4 py-3 font-medium text-text-secondary text-right">Puntuación</th>
+                  <th className="px-4 py-3 font-medium text-text-secondary text-right hidden sm:table-cell">Duración</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {scores.map((entry, i) => {
+                  const rank = (currentPage - 1) * pageSize + i + 1;
+                  return (
+                    <tr key={entry.id} className="border-b border-border last:border-0 hover:bg-surface-hover/30">
+                      <td className="px-4 py-3">
+                        <span className={`font-mono text-sm ${rank <= 3 ? "text-score-gold" : "text-text-secondary"}`}>
+                          {rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : `#${rank}`}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="font-medium text-text-primary">{entry.user.nickname || entry.user.name || "Anónimo"}</span>
+                      </td>
+                      <td className="px-4 py-3 text-text-secondary">{entry.game.title}</td>
+                      <td className="px-4 py-3 text-right font-mono font-bold text-text-primary">{entry.score.toLocaleString("es-CO")}</td>
+                      <td className="px-4 py-3 text-right font-mono text-text-secondary hidden sm:table-cell">
+                        {entry.duration ? `${Math.floor(entry.duration / 60)}:${(entry.duration % 60).toString().padStart(2, "0")}` : "-"}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {totalPages > 1 && (
+            <div className="mt-6 flex items-center justify-center gap-2">
+              {currentPage > 1 && (
+                <Link href={`/ranking?page=${currentPage - 1}${game ? `&game=${game}` : ""}`} className="rounded-lg border border-border bg-surface px-4 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-surface-hover">
+                  &larr; Anterior
+                </Link>
+              )}
+              <span className="text-sm text-text-secondary">
+                Página {currentPage} de {totalPages}
+              </span>
+              {currentPage < totalPages && (
+                <Link href={`/ranking?page=${currentPage + 1}${game ? `&game=${game}` : ""}`} className="rounded-lg border border-border bg-surface px-4 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-surface-hover">
+                  Siguiente &rarr;
+                </Link>
+              )}
+            </div>
+          )}
+        </>
       )}
     </div>
   );

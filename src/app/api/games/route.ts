@@ -21,13 +21,23 @@ export async function GET(req: NextRequest) {
       where.category = { slug: category };
     }
 
-    const games = await db.game.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      include: { category: { select: { id: true, name: true, slug: true } } },
-    });
+    const page = Math.max(1, Number(searchParams.get("page")) || 1);
+    const pageSize = Math.min(Number(searchParams.get("limit")) || 20, 50);
 
-    return NextResponse.json(games);
+    const [games, total] = await Promise.all([
+      db.game.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        include: { category: { select: { id: true, name: true, slug: true } } },
+      }),
+      db.game.count({ where }),
+    ]);
+
+    const res = NextResponse.json({ games, total, page, pageSize, totalPages: Math.ceil(total / pageSize) });
+    res.headers.set("X-Cache-TTL", "60");
+    return res;
   } catch (e) {
     console.error("games GET error:", e);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
