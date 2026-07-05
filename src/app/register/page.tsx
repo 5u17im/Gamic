@@ -5,11 +5,9 @@ import Link from "next/link";
 
 export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setPending(true);
     setError(null);
 
     const form = new FormData(e.currentTarget);
@@ -20,13 +18,11 @@ export default function RegisterPage() {
 
     if (!name || !email || !nickname || !password) {
       setError("Todos los campos son obligatorios");
-      setPending(false);
       return;
     }
 
     if (password.length < 6) {
       setError("La contraseña debe tener al menos 6 caracteres");
-      setPending(false);
       return;
     }
 
@@ -41,29 +37,27 @@ export default function RegisterPage() {
 
       if (!res.ok) {
         setError(data.error ?? "Error al registrarse");
-        setPending(false);
         return;
       }
 
-      // Auto-login
-      const csrfRes = await fetch("/api/auth/csrf");
-      const { csrfToken } = await csrfRes.json();
+      // Submit login form programmatically — full page POST
+      const loginForm = document.createElement("form");
+      loginForm.method = "POST";
+      loginForm.action = "/api/auth/callback/credentials";
 
-      const loginRes = await fetch("/api/auth/callback/credentials", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({ csrfToken, email, password, callbackUrl: "/", json: "true" }),
-      });
-
-      const loginData = await loginRes.json();
-      if (loginData.url) {
-        window.location.href = loginData.url;
-      } else {
-        window.location.href = "/login";
+      const fields = { email, password, callbackUrl: "/" };
+      for (const [k, v] of Object.entries(fields)) {
+        const input = document.createElement("input");
+        input.type = "hidden";
+        input.name = k;
+        input.value = v;
+        loginForm.appendChild(input);
       }
+
+      document.body.appendChild(loginForm);
+      loginForm.submit();
     } catch {
       setError("Error de conexión");
-      setPending(false);
     }
   };
 
@@ -148,10 +142,9 @@ export default function RegisterPage() {
 
           <button
             type="submit"
-            disabled={pending}
-            className="flex h-11 w-full items-center justify-center rounded-lg bg-primary text-sm font-medium text-text-on-primary transition-colors hover:bg-primary-hover disabled:opacity-50"
+            className="flex h-11 w-full items-center justify-center rounded-lg bg-primary text-sm font-medium text-text-on-primary transition-colors hover:bg-primary-hover"
           >
-            {pending ? "Creando cuenta..." : "Crear cuenta"}
+            Crear cuenta
           </button>
         </form>
       </div>

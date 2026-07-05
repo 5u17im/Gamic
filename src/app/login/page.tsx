@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -8,8 +8,6 @@ import Link from "next/link";
 export default function LoginPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [error, setError] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
 
   useEffect(() => {
     if (status === "authenticated") {
@@ -20,41 +18,6 @@ export default function LoginPage() {
   if (status === "authenticated") {
     return null;
   }
-
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setPending(true);
-    setError(null);
-
-    const form = new FormData(e.currentTarget);
-    const email = form.get("email") as string;
-    const password = form.get("password") as string;
-
-    try {
-      // Get CSRF token first
-      const csrfRes = await fetch("/api/auth/csrf");
-      const { csrfToken } = await csrfRes.json();
-
-      // Submit to credentials callback
-      const res = await fetch("/api/auth/callback/credentials", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({ csrfToken, email, password, callbackUrl: "/", json: "true" }),
-      });
-
-      const data = await res.json();
-
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        setError("Credenciales inválidas");
-        setPending(false);
-      }
-    } catch {
-      setError("Error de conexión");
-      setPending(false);
-    }
-  };
 
   return (
     <div className="mx-auto flex min-h-[60vh] max-w-sm items-center px-4 py-16">
@@ -71,12 +34,8 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {error && (
-            <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-2.5 text-sm text-red-600">
-              {error}
-            </div>
-          )}
+        <form action="/api/auth/callback/credentials" method="POST" className="space-y-4">
+          <input type="hidden" name="callbackUrl" value="/" />
 
           <div>
             <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-text-primary">
@@ -108,10 +67,9 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            disabled={pending}
-            className="flex h-11 w-full items-center justify-center rounded-lg bg-primary text-sm font-medium text-text-on-primary transition-colors hover:bg-primary-hover disabled:opacity-50"
+            className="flex h-11 w-full items-center justify-center rounded-lg bg-primary text-sm font-medium text-text-on-primary transition-colors hover:bg-primary-hover"
           >
-            {pending ? "Entrando..." : "Entrar"}
+            Entrar
           </button>
         </form>
       </div>
