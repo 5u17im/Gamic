@@ -1,5 +1,6 @@
 import { auth, checkRateLimit } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { computeStreakState, getAchievementSlugsForProgress } from "@/lib/progression";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
@@ -15,11 +16,19 @@ export async function POST(req: NextRequest) {
 
     const { gameSlug, score, duration } = await req.json();
 
-    if (!gameSlug || typeof score !== "number" || score < 0) {
-      return NextResponse.json({ error: "Invalid data" }, { status: 400 });
+    if (typeof gameSlug !== "string" || !gameSlug.trim()) {
+      return NextResponse.json({ error: "Invalid gameSlug" }, { status: 400 });
     }
 
-    const game = await db.game.findUnique({ where: { slug: gameSlug } });
+    if (typeof score !== "number" || !Number.isFinite(score) || score < 0 || score > 1000000) {
+      return NextResponse.json({ error: "Invalid score" }, { status: 400 });
+    }
+
+    if (duration !== undefined && (typeof duration !== "number" || !Number.isFinite(duration) || duration < 0 || duration > 86400)) {
+      return NextResponse.json({ error: "Invalid duration" }, { status: 400 });
+    }
+
+    const game = await db.game.findUnique({ where: { slug: gameSlug.trim() } });
     if (!game) {
       return NextResponse.json({ error: "Game not found" }, { status: 404 });
     }
@@ -37,6 +46,41 @@ export async function POST(req: NextRequest) {
       where: { id: game.id },
       data: { playCount: { increment: 1 } },
     });
+
+    const streakRecord = await db.dailyStreak.findUnique({ where: { userId: session.user.id } });
+    const nextStreak = computeStreakState(streakRecord, new Date());
+
+    await db.dailyStreak.upsert({
+      where: { userId: session.user.id },
+      update: {
+        currentStreak: nextStreak.currentStreak,
+        longestStreak: nextStreak.longestStreak,
+        lastPlayedDate: nextStreak.lastPlayedDate,
+      },
+      create: {
+        userId: session.user.id,
+        currentStreak: nextStreak.currentStreak,
+        longestStreak: nextStreak.longestStreak,
+        lastPlayedDate: nextStreak.lastPlayedDate,
+      },
+    });
+
+    const userAchievements = await db.userAchievement.findMany({ where: { userId: session.user.id } });
+    const unlockedSlugs = getAchievementSlugsForProgress({
+      scoreCount: await db.score.count({ where: { userId: session.user.id } }),
+      score,
+      uniqueGames: await db.gameSession.findMany({ where: { userId: session.user.id }, select: { gameId: true } }).then((sessions) => new Set(sessions.map((s) => s.gameId)).size),
+      streak: nextStreak.currentStreak,
+    });
+
+    for (const slug of unlockedSlugs) {
+      const achievement = await db.achievement.findUnique({ where: { slug } });
+      if (!achievement) continue;
+      const alreadyUnlocked = userAchievements.some((entry) => entry.achievementId === achievement.id);
+      if (!alreadyUnlocked) {
+        await db.userAchievement.create({ data: { userId: session.user.id, achievementId: achievement.id } });
+      }
+    }
 
     await db.gameSession.create({
       data: {

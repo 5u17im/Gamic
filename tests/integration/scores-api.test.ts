@@ -2,10 +2,11 @@ import { describe, it, expect } from "vitest";
 
 describe("Scores API Rules", () => {
   it("rejects negative scores via validation", () => {
-    const valid = (score: number) => typeof score === "number" && score >= 0;
+    const valid = (score: number) => typeof score === "number" && Number.isFinite(score) && score >= 0 && score <= 1000000;
     expect(valid(100)).toBe(true);
     expect(valid(-1)).toBe(false);
     expect(valid(0)).toBe(true);
+    expect(valid(1000001)).toBe(false);
   });
 
   it("rejects missing gameSlug", () => {

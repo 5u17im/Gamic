@@ -35,7 +35,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     const { id } = await params;
     const body = await req.json();
-    const { slug, title, description, categoryId, complexity, instructions, status } = body;
+    const { slug, title, description, categoryId, complexity, instructions, controls, status } = body;
 
     if (!slug || !title || !categoryId) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -43,7 +43,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     const game = await db.game.update({
       where: { id },
-      data: { slug, title, description, categoryId, complexity, instructions, status },
+      data: { slug, title, description, categoryId, complexity, instructions, controls: controls ?? null, status },
     });
 
     return NextResponse.json(game);

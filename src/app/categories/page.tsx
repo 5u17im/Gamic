@@ -1,13 +1,13 @@
 import { GameCard } from "@/components/games/GameCard";
 import { getPublishedGames, getCategories } from "@/lib/data";
 
-export default async function CategoriesPage(props: { searchParams: Promise<{ cat?: string; q?: string; page?: string }> }) {
+export default async function CategoriesPage(props: { searchParams: Promise<{ cat?: string; q?: string; page?: string; difficulty?: string; sort?: string }> }) {
   const [allGames, categories] = await Promise.all([
     getPublishedGames(),
     getCategories(),
   ]);
 
-  const { cat, q, page: pageParam } = await props.searchParams;
+  const { cat, q, page: pageParam, difficulty, sort } = await props.searchParams;
 
   let filtered = allGames;
 
@@ -20,6 +20,19 @@ export default async function CategoriesPage(props: { searchParams: Promise<{ ca
     filtered = filtered.filter(
       (g) => g.title.toLowerCase().includes(query) || (g.description ?? "").toLowerCase().includes(query)
     );
+  }
+
+  if (difficulty) {
+    const difficultyValue = Number(difficulty);
+    if (!Number.isNaN(difficultyValue)) {
+      filtered = filtered.filter((g) => g.complexity === difficultyValue);
+    }
+  }
+
+  if (sort === "popular") {
+    filtered = [...filtered].sort((a, b) => b.playCount - a.playCount);
+  } else if (sort === "az") {
+    filtered = [...filtered].sort((a, b) => a.title.localeCompare(b.title));
   }
 
   const pageSize = 12;
@@ -36,7 +49,7 @@ export default async function CategoriesPage(props: { searchParams: Promise<{ ca
         </p>
       </div>
 
-      <div className="mb-8 flex flex-wrap gap-2">
+      <div className="mb-4 flex flex-wrap gap-2">
         <a
           href="/categories"
           className={`rounded-lg px-3.5 py-2 text-sm font-medium transition-colors ${
@@ -57,6 +70,29 @@ export default async function CategoriesPage(props: { searchParams: Promise<{ ca
           </a>
         ))}
       </div>
+
+      <form className="mb-8 flex flex-wrap gap-3 rounded-xl border border-border bg-surface p-4" method="get">
+        <input
+          name="q"
+          defaultValue={q ?? ""}
+          placeholder="Buscar por título o descripción"
+          className="min-w-[220px] flex-1 rounded-lg border border-border bg-bg px-3 py-2 text-sm text-text-primary focus:border-primary focus:outline-none"
+        />
+        <select name="difficulty" defaultValue={difficulty ?? ""} className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-text-primary focus:border-primary focus:outline-none">
+          <option value="">Cualquier dificultad</option>
+          <option value="1">Fácil</option>
+          <option value="2">Media</option>
+          <option value="3">Difícil</option>
+        </select>
+        <select name="sort" defaultValue={sort ?? ""} className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-text-primary focus:border-primary focus:outline-none">
+          <option value="">Más recientes</option>
+          <option value="popular">Más jugados</option>
+          <option value="az">A-Z</option>
+        </select>
+        <button type="submit" className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-text-on-primary transition-colors hover:bg-primary-hover">
+          Aplicar
+        </button>
+      </form>
 
       {allGames.length === 0 ? (
         <div className="rounded-xl border border-border bg-surface p-12 text-center">
