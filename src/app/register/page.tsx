@@ -1,11 +1,21 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { registerAction } from "@/app/actions/auth";
+import { useSession } from "next-auth/react";
 
 export default function RegisterPage() {
   const [state, action, pending] = useActionState(registerAction, undefined);
+  const router = useRouter();
+  const { update } = useSession();
+
+  useEffect(() => {
+    if (state?.success) {
+      update().then(() => router.push("/"));
+    }
+  }, [state, update, router]);
 
   return (
     <div className="mx-auto flex min-h-[60vh] max-w-sm items-center px-4 py-16">

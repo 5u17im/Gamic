@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import { redirect } from "next/navigation";
 
-type ActionState = { error: string } | undefined;
+type ActionState = { error?: string; success?: boolean } | undefined;
 
 async function handleLogin(email: string, password: string): Promise<ActionState> {
   if (!email || !password) {
@@ -19,7 +19,7 @@ async function handleLogin(email: string, password: string): Promise<ActionState
     return { error: "Credenciales inválidas" };
   }
 
-  redirect("/");
+  return { success: true };
 }
 
 export async function loginAction(_state: ActionState, formData: FormData): Promise<ActionState> {
@@ -55,9 +55,10 @@ export async function registerAction(_state: ActionState, formData: FormData): P
     data: { name, email, nickname, password: hashedPassword },
   });
 
-  await signIn("credentials", { email, password, redirect: false });
+  const result = await signIn("credentials", { email, password, redirect: false });
+  if (result?.error) return { error: "Error al iniciar sesión" };
 
-  redirect("/");
+  return { success: true };
 }
 
 export async function logoutAction() {
