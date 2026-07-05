@@ -10,6 +10,17 @@ interface ScoreEntry {
   game: { slug: string; title: string };
 }
 
+interface UserStats {
+  totalScores: number;
+  averageScore: number;
+  totalPlayTime: number;
+  uniqueGames: number;
+  completedSessions: number;
+  currentStreak: number;
+  longestStreak: number;
+  achievements: number;
+}
+
 export default function ProfilePage() {
   const { data: session, status, update } = useSession();
   const router = useRouter();
@@ -27,6 +38,8 @@ export default function ProfilePage() {
 
   const [scores, setScores] = useState<ScoreEntry[]>([]);
   const [scoresLoading, setScoresLoading] = useState(true);
+  const [stats, setStats] = useState<UserStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(true);
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/login");
@@ -45,6 +58,11 @@ export default function ProfilePage() {
       .then((r) => r.json())
       .then((data) => { setScores(data); setScoresLoading(false); })
       .catch(() => setScoresLoading(false));
+
+    fetch("/api/profile/stats")
+      .then((r) => r.json())
+      .then((data) => { setStats(data); setStatsLoading(false); })
+      .catch(() => setStatsLoading(false));
   }, []);
 
   const handleSaveProfile = async (e: React.FormEvent) => {
@@ -186,6 +204,48 @@ export default function ProfilePage() {
             Cerrar sesión
           </button>
         </div>
+      </section>
+
+      <section className="rounded-xl border border-border bg-surface p-6">
+        <h2 className="text-lg font-bold font-heading">Estadísticas</h2>
+        {statsLoading ? (
+          <p className="mt-4 text-sm text-text-secondary">Cargando...</p>
+        ) : stats ? (
+          <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <div className="rounded-lg bg-bg/50 p-4 text-center">
+              <p className="text-2xl font-bold text-primary">{stats.totalScores}</p>
+              <p className="text-xs text-text-secondary">Partidas</p>
+            </div>
+            <div className="rounded-lg bg-bg/50 p-4 text-center">
+              <p className="text-2xl font-bold text-primary">{stats.uniqueGames}</p>
+              <p className="text-xs text-text-secondary">Juegos distintos</p>
+            </div>
+            <div className="rounded-lg bg-bg/50 p-4 text-center">
+              <p className="text-2xl font-bold text-primary">{stats.averageScore.toLocaleString("es-CO")}</p>
+              <p className="text-xs text-text-secondary">Puntaje promedio</p>
+            </div>
+            <div className="rounded-lg bg-bg/50 p-4 text-center">
+              <p className="text-2xl font-bold text-primary">{Math.floor(stats.totalPlayTime / 60)} min</p>
+              <p className="text-xs text-text-secondary">Tiempo total</p>
+            </div>
+            <div className="rounded-lg bg-bg/50 p-4 text-center">
+              <p className="text-2xl font-bold text-amber-400">{stats.currentStreak}</p>
+              <p className="text-xs text-text-secondary">Racha actual</p>
+            </div>
+            <div className="rounded-lg bg-bg/50 p-4 text-center">
+              <p className="text-2xl font-bold text-amber-400">{stats.longestStreak}</p>
+              <p className="text-xs text-text-secondary">Mejor racha</p>
+            </div>
+            <div className="rounded-lg bg-bg/50 p-4 text-center">
+              <p className="text-2xl font-bold text-emerald-400">{stats.achievements}</p>
+              <p className="text-xs text-text-secondary">Logros</p>
+            </div>
+            <div className="rounded-lg bg-bg/50 p-4 text-center">
+              <p className="text-2xl font-bold text-emerald-400">{stats.completedSessions}</p>
+              <p className="text-xs text-text-secondary">Completadas</p>
+            </div>
+          </div>
+        ) : null}
       </section>
 
       <section className="rounded-xl border border-border bg-surface p-6">
