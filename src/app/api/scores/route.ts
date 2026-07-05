@@ -38,6 +38,17 @@ export async function POST(req: NextRequest) {
       data: { playCount: { increment: 1 } },
     });
 
+    await db.gameSession.create({
+      data: {
+        userId: session.user.id,
+        gameId: game.id,
+        startTime: new Date(Date.now() - (duration ?? 0) * 1000),
+        endTime: new Date(),
+        score,
+        completed: true,
+      },
+    });
+
     return NextResponse.json(result, { status: 201 });
   } catch (e) {
     console.error("scores POST error:", e);
