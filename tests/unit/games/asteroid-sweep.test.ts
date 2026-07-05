@@ -1,24 +1,5 @@
 import { describe, it, expect } from "vitest";
-
-// Asteroid Sweep core logic
-function createBullet(x: number, y: number, angle: number) {
-  const speed = 300;
-  return { x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, life: 60 };
-}
-
-function createAsteroid(x: number, y: number, size: number) {
-  return { x, y, size, vx: 0, vy: 0, rotation: 0, rotSpeed: 0, vertices: 10 };
-}
-
-function checkCollision(ax: number, ay: number, ar: number, bx: number, by: number, br: number): boolean {
-  const dx = ax - bx;
-  const dy = ay - by;
-  return dx * dx + dy * dy < (ar + br) * (ar + br);
-}
-
-function calculateScore(size: number): number {
-  return Math.ceil(100 / size * 30);
-}
+import { createBullet, createAsteroid, checkCollision, calculateAsteroidScore } from "@/lib/engines";
 
 describe("Asteroid Sweep - Game Logic", () => {
   describe("createBullet", () => {
@@ -52,15 +33,15 @@ describe("Asteroid Sweep - Game Logic", () => {
     });
   });
 
-  describe("calculateScore", () => {
+  describe("calculateAsteroidScore", () => {
     it("gives more points for smaller asteroids", () => {
-      const small = calculateScore(20);
-      const large = calculateScore(50);
+      const small = calculateAsteroidScore(20);
+      const large = calculateAsteroidScore(50);
       expect(small).toBeGreaterThan(large);
     });
 
     it("returns at least 60 points", () => {
-      expect(calculateScore(50)).toBeGreaterThanOrEqual(60);
+      expect(calculateAsteroidScore(50)).toBeGreaterThanOrEqual(60);
     });
   });
 });
