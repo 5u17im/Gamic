@@ -1,21 +1,71 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useState } from "react";
+import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { registerAction } from "@/app/actions/auth";
-import { useSession } from "next-auth/react";
 
 export default function RegisterPage() {
-  const [state, action, pending] = useActionState(registerAction, undefined);
   const router = useRouter();
-  const { update } = useSession();
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
 
-  useEffect(() => {
-    if (state?.success) {
-      update().then(() => router.push("/"));
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setPending(true);
+    setError(null);
+
+    const form = new FormData(e.currentTarget);
+    const name = form.get("name") as string;
+    const email = form.get("email") as string;
+    const nickname = form.get("nickname") as string;
+    const password = form.get("password") as string;
+
+    if (!name || !email || !nickname || !password) {
+      setError("Todos los campos son obligatorios");
+      setPending(false);
+      return;
     }
-  }, [state, update, router]);
+
+    if (password.length < 6) {
+      setError("La contraseña debe tener al menos 6 caracteres");
+      setPending(false);
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, nickname, password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error ?? "Error al registrarse");
+        setPending(false);
+        return;
+      }
+
+      const result = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        setError("Cuenta creada pero error al iniciar sesión. Intenta entrar.");
+        router.push("/login");
+      } else {
+        router.push("/");
+        router.refresh();
+      }
+    } catch {
+      setError("Error de conexión");
+      setPending(false);
+    }
+  };
 
   return (
     <div className="mx-auto flex min-h-[60vh] max-w-sm items-center px-4 py-16">
@@ -32,10 +82,10 @@ export default function RegisterPage() {
           </p>
         </div>
 
-        <form action={action} className="space-y-4">
-          {state?.error && (
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {error && (
             <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-2.5 text-sm text-red-600">
-              {state.error}
+              {error}
             </div>
           )}
 

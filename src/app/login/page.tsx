@@ -1,21 +1,38 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useState } from "react";
+import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { loginAction } from "@/app/actions/auth";
-import { useSession } from "next-auth/react";
 
 export default function LoginPage() {
-  const [state, action, pending] = useActionState(loginAction, undefined);
   const router = useRouter();
-  const { update } = useSession();
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
 
-  useEffect(() => {
-    if (state?.success) {
-      update().then(() => router.push("/"));
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setPending(true);
+    setError(null);
+
+    const form = new FormData(e.currentTarget);
+    const email = form.get("email") as string;
+    const password = form.get("password") as string;
+
+    const result = await signIn("credentials", {
+      email,
+      password,
+      redirect: false,
+    });
+
+    if (result?.error) {
+      setError("Credenciales inválidas");
+      setPending(false);
+    } else {
+      router.push("/");
+      router.refresh();
     }
-  }, [state, update, router]);
+  };
 
   return (
     <div className="mx-auto flex min-h-[60vh] max-w-sm items-center px-4 py-16">
@@ -32,10 +49,10 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <form action={action} className="space-y-4">
-          {state?.error && (
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {error && (
             <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-2.5 text-sm text-red-600">
-              {state.error}
+              {error}
             </div>
           )}
 
