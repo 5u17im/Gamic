@@ -1,10 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { registerAction } from "@/app/actions/auth";
 
 export default function RegisterPage() {
+  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, startTransition] = useTransition();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -26,39 +30,14 @@ export default function RegisterPage() {
       return;
     }
 
-    try {
-      const res = await fetch("/api/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, nickname, password }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error ?? "Error al registrarse");
+    startTransition(async () => {
+      const result = await registerAction(undefined, form);
+      if (result?.error) {
+        setError(result.error);
         return;
       }
-
-      // Submit login form programmatically — full page POST
-      const loginForm = document.createElement("form");
-      loginForm.method = "POST";
-      loginForm.action = "/api/auth/callback/credentials";
-
-      const fields = { email, password, callbackUrl: "/" };
-      for (const [k, v] of Object.entries(fields)) {
-        const input = document.createElement("input");
-        input.type = "hidden";
-        input.name = k;
-        input.value = v;
-        loginForm.appendChild(input);
-      }
-
-      document.body.appendChild(loginForm);
-      loginForm.submit();
-    } catch {
-      setError("Error de conexión");
-    }
+      router.replace("/");
+    });
   };
 
   return (
@@ -142,9 +121,10 @@ export default function RegisterPage() {
 
           <button
             type="submit"
-            className="flex h-11 w-full items-center justify-center rounded-lg bg-primary text-sm font-medium text-text-on-primary transition-colors hover:bg-primary-hover"
+            disabled={isSubmitting}
+            className="flex h-11 w-full items-center justify-center rounded-lg bg-primary text-sm font-medium text-text-on-primary transition-colors hover:bg-primary-hover disabled:opacity-60"
           >
-            Crear cuenta
+            {isSubmitting ? "Creando cuenta..." : "Crear cuenta"}
           </button>
         </form>
       </div>

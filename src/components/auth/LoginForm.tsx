@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { loginAction } from "@/app/actions/auth";
 
 const ERROR_MESSAGES: Record<string, string> = {
   CredentialsSignin: "Email o contraseña incorrectos",
@@ -15,6 +16,7 @@ export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (status === "authenticated") {
@@ -28,6 +30,23 @@ export function LoginForm() {
       setError(ERROR_MESSAGES[err] ?? ERROR_MESSAGES.default);
     }
   }, [searchParams]);
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    setIsSubmitting(true);
+
+    const formData = new FormData(event.currentTarget);
+    const result = await loginAction(undefined, formData);
+
+    if (result?.error) {
+      setError(result.error);
+      setIsSubmitting(false);
+      return;
+    }
+
+    router.replace("/");
+  }
 
   if (status === "authenticated") {
     return null;
@@ -48,7 +67,7 @@ export function LoginForm() {
           </p>
         </div>
 
-        <form action="/api/auth/callback/credentials" method="POST" className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <input type="hidden" name="callbackUrl" value="/" />
 
           {error && (
@@ -87,9 +106,10 @@ export function LoginForm() {
 
           <button
             type="submit"
-            className="flex h-11 w-full items-center justify-center rounded-lg bg-primary text-sm font-medium text-text-on-primary transition-colors hover:bg-primary-hover"
+            disabled={isSubmitting}
+            className="flex h-11 w-full items-center justify-center rounded-lg bg-primary text-sm font-medium text-text-on-primary transition-colors hover:bg-primary-hover disabled:opacity-60"
           >
-            Entrar
+            {isSubmitting ? "Entrando..." : "Entrar"}
           </button>
         </form>
       </div>
