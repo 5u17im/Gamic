@@ -7,6 +7,7 @@ import { db } from "./db";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(db),
+  basePath: "/api/auth",
   providers: [
     Credentials({
       name: "credentials",
@@ -15,28 +16,33 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null;
+        try {
+          if (!credentials?.email || !credentials?.password) return null;
 
-        const user = await db.user.findUnique({
-          where: { email: credentials.email as string },
-        });
+          const user = await db.user.findUnique({
+            where: { email: credentials.email as string },
+          });
 
-        if (!user || !user.password) return null;
+          if (!user || !user.password) return null;
 
-        const bcrypt = await import("bcryptjs");
-        const isValid = await bcrypt.compare(
-          credentials.password as string,
-          user.password
-        );
+          const bcrypt = await import("bcryptjs");
+          const isValid = await bcrypt.compare(
+            credentials.password as string,
+            user.password
+          );
 
-        if (!isValid) return null;
+          if (!isValid) return null;
 
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          image: user.image,
-        };
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            image: user.image,
+          };
+        } catch (e) {
+          console.error("authorize error:", e);
+          return null;
+        }
       },
     }),
     ...(process.env.AUTH_GOOGLE_ID ? [Google] : []),

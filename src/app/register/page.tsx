@@ -1,12 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 export default function RegisterPage() {
-  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -48,18 +45,21 @@ export default function RegisterPage() {
         return;
       }
 
-      const result = await signIn("credentials", {
-        email,
-        password,
-        redirect: false,
+      // Auto-login
+      const csrfRes = await fetch("/api/auth/csrf");
+      const { csrfToken } = await csrfRes.json();
+
+      const loginRes = await fetch("/api/auth/callback/credentials", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ csrfToken, email, password, callbackUrl: "/", json: "true" }),
       });
 
-      if (result?.error) {
-        setError("Cuenta creada pero error al iniciar sesión. Intenta entrar.");
-        router.push("/login");
+      const loginData = await loginRes.json();
+      if (loginData.url) {
+        window.location.href = loginData.url;
       } else {
-        router.push("/");
-        router.refresh();
+        window.location.href = "/login";
       }
     } catch {
       setError("Error de conexión");
