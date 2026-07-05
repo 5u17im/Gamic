@@ -8,16 +8,18 @@ describe("GamePlayer", () => {
     expect(screen.getByText("Cargando juego...")).toBeDefined();
   });
 
-  it("shows not available for unknown games", () => {
-    render(<GamePlayer slug="unknown-game" />);
-    expect(screen.getByText("Juego no disponible")).toBeDefined();
-  });
-
-  it("renders iframe for known games", () => {
+  it("renders iframe with correct src", () => {
     const { container } = render(<GamePlayer slug="quick-math" />);
     const iframe = container.querySelector("iframe");
     expect(iframe).toBeDefined();
     expect(iframe?.getAttribute("src")).toBe("/games/quick-math/index.html");
     expect(iframe?.getAttribute("sandbox")).toContain("allow-scripts");
+  });
+
+  it("renders iframe for any slug", () => {
+    const { container } = render(<GamePlayer slug="unknown-game" />);
+    const iframe = container.querySelector("iframe");
+    expect(iframe).toBeDefined();
+    expect(iframe?.getAttribute("src")).toBe("/games/unknown-game/index.html");
   });
 });

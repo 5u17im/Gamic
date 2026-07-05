@@ -3,14 +3,6 @@
 import { useCallback, useState } from "react";
 import { useGame } from "@/hooks/useGame";
 
-const GAME_URLS: Record<string, string> = {
-  "hex-merge": "/games/hex-merge/index.html",
-  "asteroid-sweep": "/games/asteroid-sweep/index.html",
-  "pivot": "/games/pivot/index.html",
-  "quick-math": "/games/quick-math/index.html",
-  "flip-tactics": "/games/flip-tactics/index.html",
-};
-
 export function GamePlayer({ slug }: { slug: string }) {
   const [lastScore, setLastScore] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -44,7 +36,7 @@ export function GamePlayer({ slug }: { slug: string }) {
     onGameOver: handleGameOver,
   });
 
-  const gameUrl = GAME_URLS[slug];
+  const gameUrl = `/games/${slug}/index.html`;
 
   if (!gameUrl) {
     return (

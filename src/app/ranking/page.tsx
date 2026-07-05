@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { db } from "@/lib/db";
 
 interface ScoreEntry {
   id: string;
@@ -10,26 +11,37 @@ interface ScoreEntry {
 }
 
 async function getScores(game?: string): Promise<ScoreEntry[]> {
-  const params = new URLSearchParams({ limit: "20" });
-  if (game) params.set("game", game);
-  const res = await fetch(`${process.env.AUTH_URL || "http://localhost:3000"}/api/scores?${params}`, {
-    cache: "no-store",
-  });
-  if (!res.ok) return [];
-  return res.json();
+  try {
+    const where = game ? { game: { slug: game } } : {};
+    const scores = await db.score.findMany({
+      where,
+      orderBy: { score: "desc" },
+      take: 20,
+      include: {
+        user: { select: { id: true, name: true, image: true, nickname: true } },
+        game: { select: { slug: true, title: true } },
+      },
+    });
+    return scores as unknown as ScoreEntry[];
+  } catch {
+    return [];
+  }
 }
 
-const GAMES = [
-  { slug: "hex-merge", title: "Hex Merge" },
-  { slug: "asteroid-sweep", title: "Asteroid Sweep" },
-  { slug: "pivot", title: "Pivot" },
-  { slug: "quick-math", title: "Quick Math" },
-  { slug: "flip-tactics", title: "Flip Tactics" },
-];
+async function getRankingGames() {
+  return db.game.findMany({
+    where: { status: "published" },
+    select: { slug: true, title: true },
+    orderBy: { title: "asc" },
+  });
+}
 
 export default async function RankingPage(props: { searchParams: Promise<{ game?: string }> }) {
   const { game } = await props.searchParams;
-  const scores = await getScores(game);
+  const [scores, games] = await Promise.all([
+    getScores(game),
+    getRankingGames(),
+  ]);
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
@@ -47,7 +59,7 @@ export default async function RankingPage(props: { searchParams: Promise<{ game?
         >
           Todos
         </Link>
-        {GAMES.map((g) => (
+        {games.map((g) => (
           <Link
             key={g.slug}
             href={`/ranking?game=${g.slug}`}

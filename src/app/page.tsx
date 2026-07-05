@@ -1,67 +1,15 @@
 import Link from "next/link";
 import { GameCard } from "@/components/games/GameCard";
+import { getPublishedGames, getCategories } from "@/lib/data";
 
-const FEATURED_GAMES = [
-  {
-    slug: "hex-merge",
-    title: "Hex Merge",
-    category: "Puzzle",
-    categorySlug: "puzzle",
-    description: "Fusiona fichas hexagonales del mismo color en un tablero panal.",
-    complexity: 1,
-    thumbnail: null,
-  },
-  {
-    slug: "asteroid-sweep",
-    title: "Asteroid Sweep",
-    category: "Arcade",
-    categorySlug: "arcade",
-    description: "Nave que orbita un planeta mientras esquiva y destruye asteroides.",
-    complexity: 2,
-    thumbnail: null,
-  },
-  {
-    slug: "pivot",
-    title: "Pivot",
-    category: "Habilidad",
-    categorySlug: "habilidad",
-    description: "Gira la plataforma en el momento exacto para que la bola no caiga.",
-    complexity: 1,
-    thumbnail: null,
-  },
-  {
-    slug: "quick-math",
-    title: "Quick Math",
-    category: "Educativos",
-    categorySlug: "educativos",
-    description: "Operaciones aritméticas contrarreloj. Cada acierto suma tiempo.",
-    complexity: 1,
-    thumbnail: null,
-  },
-  {
-    slug: "flip-tactics",
-    title: "Flip Tactics",
-    category: "Cartas",
-    categorySlug: "cartas",
-    description: "Memoria con habilidades especiales. Voltea pares y activa poderes.",
-    complexity: 2,
-    thumbnail: null,
-  },
-];
+export default async function HomePage() {
+  const [games, categories] = await Promise.all([
+    getPublishedGames(),
+    getCategories(),
+  ]);
 
-const CATEGORIES = [
-  { name: "Arcade", slug: "arcade", icon: "🎯", count: 1 },
-  { name: "Puzzle", slug: "puzzle", icon: "🧩", count: 1 },
-  { name: "Estrategia", slug: "estrategia", icon: "🧠", count: 0 },
-  { name: "Habilidad", slug: "habilidad", icon: "🎮", count: 1 },
-  { name: "Aventura", slug: "aventura", icon: "🗺️", count: 0 },
-  { name: "Deportes", slug: "deportes", icon: "⚽", count: 0 },
-  { name: "Cartas", slug: "cartas", icon: "🃏", count: 1 },
-  { name: "Educativos", slug: "educativos", icon: "📐", count: 1 },
-  { name: "Todos", slug: "", icon: "🎮", count: 5 },
-];
+  const totalGames = games.length;
 
-export default function HomePage() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
       <section className="mb-10 overflow-hidden rounded-xl bg-gradient-to-br from-primary/10 via-primary/5 to-accent/10 p-8 sm:p-12">
@@ -80,12 +28,6 @@ export default function HomePage() {
             >
               Explorar juegos
             </Link>
-            <Link
-              href="#destacados"
-              className="inline-flex h-12 items-center rounded-lg border border-border bg-surface px-6 text-sm font-medium text-text-primary transition-colors hover:bg-surface-hover"
-            >
-              Ver destacados
-            </Link>
           </div>
         </div>
       </section>
@@ -103,15 +45,15 @@ export default function HomePage() {
           </Link>
         </div>
         <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none">
-          {CATEGORIES.map((cat) => (
+          {categories.map((cat) => (
             <Link
               key={cat.slug}
               href={`/categories?cat=${cat.slug}`}
               className="flex shrink-0 flex-col items-center gap-1.5 rounded-xl border border-border bg-surface p-4 transition-all hover:border-primary/30 hover:shadow-card-hover hover:-translate-y-0.5"
             >
-              <span className="text-2xl">{cat.icon}</span>
+              <span className="text-2xl">{cat.icon ?? "🎮"}</span>
               <span className="text-xs font-medium text-text-primary">{cat.name}</span>
-              <span className="text-xs text-text-secondary">{cat.count} juegos</span>
+              <span className="text-xs text-text-secondary">{cat._count.games} juegos</span>
             </Link>
           ))}
         </div>
@@ -120,7 +62,7 @@ export default function HomePage() {
       <section id="destacados" className="mb-10">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-xl font-semibold text-text-primary font-heading">
-            Pr&oacute;ximamente
+            Juegos
           </h2>
           <Link
             href="/categories"
@@ -129,20 +71,26 @@ export default function HomePage() {
             Ver todos &rarr;
           </Link>
         </div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-          {FEATURED_GAMES.map((game) => (
-            <GameCard
-              key={game.slug}
-              slug={game.slug}
-              title={game.title}
-              category={game.category}
-              categorySlug={game.categorySlug}
-              description={game.description}
-              complexity={game.complexity}
-              thumbnail={game.thumbnail}
-            />
-          ))}
-        </div>
+        {games.length === 0 ? (
+          <div className="rounded-xl border border-border bg-surface p-12 text-center">
+            <p className="text-text-secondary">No hay juegos disponibles a&uacute;n.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            {games.map((game) => (
+              <GameCard
+                key={game.slug}
+                slug={game.slug}
+                title={game.title}
+                category={game.category.name}
+                categorySlug={game.category.slug}
+                description={game.description ?? ""}
+                complexity={game.complexity}
+                thumbnail={null}
+              />
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );

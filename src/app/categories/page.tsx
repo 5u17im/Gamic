@@ -1,27 +1,25 @@
 import { GameCard } from "@/components/games/GameCard";
-
-const GAMES = [
-  { slug: "hex-merge", title: "Hex Merge", category: "Puzzle", categorySlug: "puzzle", description: "Fusiona fichas hexagonales del mismo color en un tablero panal.", complexity: 1, thumbnail: null },
-  { slug: "asteroid-sweep", title: "Asteroid Sweep", category: "Arcade", categorySlug: "arcade", description: "Nave que orbita un planeta mientras esquiva y destruye asteroides.", complexity: 2, thumbnail: null },
-  { slug: "pivot", title: "Pivot", category: "Habilidad", categorySlug: "habilidad", description: "Gira la plataforma en el momento exacto para que la bola no caiga.", complexity: 1, thumbnail: null },
-  { slug: "quick-math", title: "Quick Math", category: "Educativos", categorySlug: "educativos", description: "Operaciones aritméticas contrarreloj.", complexity: 1, thumbnail: null },
-  { slug: "flip-tactics", title: "Flip Tactics", category: "Cartas", categorySlug: "cartas", description: "Memoria con habilidades especiales.", complexity: 2, thumbnail: null },
-];
-
-const CATEGORIES = ["Todos", "Arcade", "Puzzle", "Estrategia", "Habilidad", "Aventura", "Deportes", "Cartas", "Educativos"];
+import { getPublishedGames, getCategories } from "@/lib/data";
 
 export default async function CategoriesPage(props: { searchParams: Promise<{ cat?: string; q?: string }> }) {
+  const [games, categories] = await Promise.all([
+    getPublishedGames(),
+    getCategories(),
+  ]);
+
   const { cat, q } = await props.searchParams;
 
-  let filtered = GAMES;
+  let filtered = games;
 
   if (cat && cat !== "Todos") {
-    filtered = filtered.filter((g) => g.categorySlug === cat.toLowerCase());
+    filtered = filtered.filter((g) => g.category.slug === cat.toLowerCase());
   }
 
   if (q) {
     const query = q.toLowerCase();
-    filtered = filtered.filter((g) => g.title.toLowerCase().includes(query) || g.description.toLowerCase().includes(query));
+    filtered = filtered.filter(
+      (g) => g.title.toLowerCase().includes(query) || (g.description ?? "").toLowerCase().includes(query)
+    );
   }
 
   return (
@@ -34,20 +32,25 @@ export default async function CategoriesPage(props: { searchParams: Promise<{ ca
       </div>
 
       <div className="mb-8 flex flex-wrap gap-2">
-        {CATEGORIES.map((catName) => {
-          const isActive = (!cat && catName === "Todos") || cat === catName.toLowerCase();
-          return (
-            <a
-              key={catName}
-              href={catName === "Todos" ? "/categories" : `/categories?cat=${catName.toLowerCase()}`}
-              className={`rounded-lg px-3.5 py-2 text-sm font-medium transition-colors ${
-                isActive ? "bg-primary text-text-on-primary" : "bg-surface text-text-secondary hover:bg-surface-hover hover:text-text-primary border border-border"
-              }`}
-            >
-              {catName}
-            </a>
-          );
-        })}
+        <a
+          href="/categories"
+          className={`rounded-lg px-3.5 py-2 text-sm font-medium transition-colors ${
+            !cat ? "bg-primary text-text-on-primary" : "bg-surface text-text-secondary hover:bg-surface-hover hover:text-text-primary border border-border"
+          }`}
+        >
+          Todos
+        </a>
+        {categories.map((catItem) => (
+          <a
+            key={catItem.slug}
+            href={`/categories?cat=${catItem.slug}`}
+            className={`rounded-lg px-3.5 py-2 text-sm font-medium transition-colors ${
+              cat === catItem.slug ? "bg-primary text-text-on-primary" : "bg-surface text-text-secondary hover:bg-surface-hover hover:text-text-primary border border-border"
+            }`}
+          >
+            {catItem.icon ?? "🎮"} {catItem.name}
+          </a>
+        ))}
       </div>
 
       {filtered.length === 0 ? (
@@ -57,7 +60,16 @@ export default async function CategoriesPage(props: { searchParams: Promise<{ ca
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
           {filtered.map((game) => (
-            <GameCard key={game.slug} {...game} />
+            <GameCard
+              key={game.slug}
+              slug={game.slug}
+              title={game.title}
+              category={game.category.name}
+              categorySlug={game.category.slug}
+              description={game.description ?? ""}
+              complexity={game.complexity}
+              thumbnail={null}
+            />
           ))}
         </div>
       )}

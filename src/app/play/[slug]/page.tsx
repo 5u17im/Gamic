@@ -1,17 +1,10 @@
 import Link from "next/link";
 import { GamePlayer } from "@/components/games/GamePlayer";
-
-const GAMES_MAP: Record<string, { title: string; description: string; category: string }> = {
-  "hex-merge": { title: "Hex Merge", description: "Fusiona fichas hexagonales del mismo color en un tablero panal.", category: "Puzzle" },
-  "asteroid-sweep": { title: "Asteroid Sweep", description: "Nave que orbita un planeta mientras esquiva asteroides.", category: "Arcade" },
-  "pivot": { title: "Pivot", description: "Gira la plataforma para que la bola no caiga.", category: "Habilidad" },
-  "quick-math": { title: "Quick Math", description: "Operaciones aritméticas contrarreloj.", category: "Educativos" },
-  "flip-tactics": { title: "Flip Tactics", description: "Memoria con habilidades especiales.", category: "Cartas" },
-};
+import { getGameBySlug } from "@/lib/data";
 
 export default async function PlayPage(props: { params: Promise<{ slug: string }> }) {
   const { slug } = await props.params;
-  const game = GAMES_MAP[slug];
+  const game = await getGameBySlug(slug);
 
   if (!game) {
     return (
@@ -28,7 +21,7 @@ export default async function PlayPage(props: { params: Promise<{ slug: string }
       <div className="mb-4 flex items-center gap-3">
         <Link href="/categories" className="text-sm text-text-secondary hover:text-text-primary transition-colors">&larr; Volver</Link>
         <span className="text-text-secondary">/</span>
-        <span className="text-sm text-text-secondary">{game.category}</span>
+        <span className="text-sm text-text-secondary">{game.category.name}</span>
         <span className="text-text-secondary">/</span>
         <h1 className="text-lg font-semibold text-text-primary">{game.title}</h1>
       </div>
