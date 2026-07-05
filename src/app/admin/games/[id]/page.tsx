@@ -9,7 +9,7 @@ export default function EditGame() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
-  const [form, setForm] = useState({ slug: "", title: "", description: "", categoryId: "", complexity: 1, instructions: "", status: "" });
+  const [form, setForm] = useState({ slug: "", title: "", description: "", categoryId: "", complexity: 1, instructions: "", controls: "", status: "" });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -20,7 +20,7 @@ export default function EditGame() {
     fetch(`/api/admin/games/${id}`)
       .then((r) => r.json())
       .then((g) => {
-        setForm({ slug: g.slug, title: g.title, description: g.description ?? "", categoryId: g.categoryId, complexity: g.complexity, instructions: g.instructions ?? "", status: g.status });
+        setForm({ slug: g.slug, title: g.title, description: g.description ?? "", categoryId: g.categoryId, complexity: g.complexity, instructions: g.instructions ?? "", controls: g.controls ?? "", status: g.status });
         setLoading(false);
       });
   }, [id]);
@@ -69,6 +69,10 @@ export default function EditGame() {
           <div>
             <label className="block text-xs font-medium text-text-secondary">Complejidad</label>
             <input type="number" min={1} max={5} value={form.complexity} onChange={(e) => setForm({ ...form, complexity: Number(e.target.value) })} className="mt-1 w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-text-primary focus:border-primary focus:outline-none" />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="block text-xs font-medium text-text-secondary">Controles</label>
+            <input value={form.controls} onChange={(e) => setForm({ ...form, controls: e.target.value })} className="mt-1 w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-text-primary focus:border-primary focus:outline-none" placeholder="⬆️⬇️⬅️➡️: mover | ␣: acción" />
           </div>
           <div className="sm:col-span-2">
             <label className="block text-xs font-medium text-text-secondary">Instrucciones</label>

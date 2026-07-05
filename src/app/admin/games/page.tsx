@@ -15,7 +15,7 @@ export default function AdminGames() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
-  const [form, setForm] = useState({ slug: "", title: "", description: "", categoryId: "", complexity: 1, instructions: "", status: "draft" });
+  const [form, setForm] = useState({ slug: "", title: "", description: "", categoryId: "", complexity: 1, instructions: "", controls: "", status: "draft" });
 
   const fetchGames = () => {
     fetch("/api/admin/games")
@@ -39,7 +39,7 @@ export default function AdminGames() {
       body: JSON.stringify(form),
     });
     setShowForm(false);
-    setForm({ slug: "", title: "", description: "", categoryId: "", complexity: 1, instructions: "", status: "draft" });
+    setForm({ slug: "", title: "", description: "", categoryId: "", complexity: 1, instructions: "", controls: "", status: "draft" });
     fetchGames();
   };
 
@@ -77,6 +77,14 @@ export default function AdminGames() {
             <div className="sm:col-span-2">
               <label className="block text-xs font-medium text-text-secondary">Descripción</label>
               <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="mt-1 w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-text-primary focus:border-primary focus:outline-none" rows={2} />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-medium text-text-secondary">Controles</label>
+              <input value={form.controls} onChange={(e) => setForm({ ...form, controls: e.target.value })} className="mt-1 w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-text-primary focus:border-primary focus:outline-none" placeholder="⬆️⬇️⬅️➡️: mover | ␣: acción" />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-medium text-text-secondary">Instrucciones</label>
+              <textarea value={form.instructions} onChange={(e) => setForm({ ...form, instructions: e.target.value })} className="mt-1 w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-text-primary focus:border-primary focus:outline-none" rows={3} />
             </div>
             <div>
               <label className="block text-xs font-medium text-text-secondary">Categoría *</label>

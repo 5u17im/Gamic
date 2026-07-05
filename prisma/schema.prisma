@@ -84,6 +84,7 @@ model Game {
   thumbnail    String?
   complexity   Int      @default(1)
   instructions String?
+  controls     String?
   gameUrl      String?
   status       String   @default("draft")
   playCount    Int      @default(0)

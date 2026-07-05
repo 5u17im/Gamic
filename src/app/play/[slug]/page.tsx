@@ -32,9 +32,25 @@ export default async function PlayPage(props: { params: Promise<{ slug: string }
         </div>
       </div>
 
-      <div className="mt-6">
-        <h2 className="text-xl font-semibold text-text-primary">{game.title}</h2>
-        <p className="mt-1 text-text-secondary">{game.description}</p>
+      <div className="mt-6 space-y-4">
+        <div>
+          <h2 className="text-xl font-semibold text-text-primary">{game.title}</h2>
+          <p className="mt-1 text-text-secondary">{game.description}</p>
+        </div>
+
+        {game.controls && (
+          <div className="rounded-lg border border-border bg-surface p-4">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-text-secondary mb-2">Controles</h3>
+            <p className="text-sm text-text-primary">{game.controls}</p>
+          </div>
+        )}
+
+        {game.instructions && (
+          <div className="rounded-lg border border-border bg-surface p-4">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-text-secondary mb-2">Instrucciones</h3>
+            <p className="text-sm text-text-primary">{game.instructions}</p>
+          </div>
+        )}
       </div>
     </div>
   );
