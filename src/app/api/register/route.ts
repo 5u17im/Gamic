@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import bcrypt from "bcryptjs";
+import { logEvent } from "@/lib/observability";
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
@@ -30,6 +31,8 @@ export async function POST(req: Request) {
     await db.user.create({
       data: { name, email, nickname, password: hashedPassword },
     });
+
+    logEvent("login", { email });
 
     return NextResponse.json({ ok: true });
   } catch (e) {

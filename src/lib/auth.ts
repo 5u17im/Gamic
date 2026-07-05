@@ -83,6 +83,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 });
 
 const rateStore = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT_MAX_KEYS = 1000;
 
 export function requireAdmin(session: any): boolean {
   return session?.user?.id && (session as any)?.user?.role === "admin";
@@ -90,6 +91,14 @@ export function requireAdmin(session: any): boolean {
 
 export function checkRateLimit(key: string, max: number, windowMs: number): boolean {
   const now = Date.now();
+  if (rateStore.size > RATE_LIMIT_MAX_KEYS) {
+    for (const [entryKey, entry] of rateStore.entries()) {
+      if (entry.resetAt <= now) {
+        rateStore.delete(entryKey);
+      }
+    }
+  }
+
   const entry = rateStore.get(key);
   if (!entry || now > entry.resetAt) {
     rateStore.set(key, { count: 1, resetAt: now + windowMs });

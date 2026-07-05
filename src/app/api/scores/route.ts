@@ -1,6 +1,7 @@
 import { auth, checkRateLimit } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { computeStreakState, getAchievementSlugsForProgress } from "@/lib/progression";
+import { logEvent } from "@/lib/observability";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
@@ -92,6 +93,8 @@ export async function POST(req: NextRequest) {
         completed: true,
       },
     });
+
+    logEvent("score_submitted", { gameSlug: game.slug, userId: session.user.id, score });
 
     return NextResponse.json(result, { status: 201 });
   } catch (e) {
